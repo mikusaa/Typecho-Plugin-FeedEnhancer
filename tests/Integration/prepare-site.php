@@ -125,6 +125,12 @@ function insertFixture(\Typecho\Db $db, string $table, array $row): void
     $db->query($db->insert('table.' . $table)->rows($row));
 }
 
+// Remove installer sample data so current-time rows cannot cross the
+// visibility boundary between two requests in the same contract run.
+foreach (['comments', 'relationships', 'fields', 'contents'] as $table) {
+    $db->query($db->delete('table.' . $table));
+}
+
 $created = 1577966400; // 2020-01-02 12:00:00 UTC.
 $modified = 1609588800; // 2021-01-02 12:00:00 UTC.
 

@@ -16,6 +16,10 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
     define('__TYPECHO_ROOT_DIR__', $typechoRoot);
 }
 
+if (!defined('__TYPECHO_PLUGIN_DIR__')) {
+    define('__TYPECHO_PLUGIN_DIR__', '/usr/plugins');
+}
+
 require_once $typechoRoot . '/var/Typecho/Common.php';
 \Typecho\Common::init();
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
