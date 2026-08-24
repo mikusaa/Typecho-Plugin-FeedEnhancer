@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:media="http://search.yahoo.com/mrss/"
+     xmlns:vendor="urn:feed-enhancer:test:vendor">
+  <channel>
+    <title>RSS2 fixture</title>
+    <link>https://example.test/</link>
+    <description>Fixture</description>
+    <item>
+      <title>Article</title>
+      <link>https://example.test/posts/rss2-article/</link>
+      <guid>https://example.test/posts/rss2-article/</guid>
+      <content:encoded><![CDATA[<p>Body without an image.</p>]]></content:encoded>
+      <vendor:suffix vendor:key="rss2">preserve me</vendor:suffix>
+    </item>
+    <item>
+      <title>Existing thumbnail</title>
+      <link>https://example.test/posts/rss2-existing/</link>
+      <guid>https://example.test/posts/rss2-existing/</guid>
+      <media:thumbnail url="https://cdn.example.test/existing-thumb.jpg"/>
+    </item>
+  </channel>
+</rss>

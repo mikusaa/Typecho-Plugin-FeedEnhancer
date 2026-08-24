@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns="http://purl.org/rss/1.0/"
+         xmlns:media="http://search.yahoo.com/mrss/"
+         xmlns:vendor="urn:feed-enhancer:test:vendor">
+  <channel rdf:about="https://example.test/feed/rss/">
+    <title>RSS1 fixture</title>
+    <link>https://example.test/</link>
+    <description>Fixture</description>
+  </channel>
+  <item rdf:about="https://example.test/posts/rss1-article/">
+    <title>Article</title>
+    <link>https://example.test/posts/rss1-article/</link>
+    <description>Article body</description>
+    <vendor:suffix vendor:key="rss1">preserve me</vendor:suffix>
+  </item>
+  <item rdf:about="https://example.test/posts/rss1-existing/">
+    <title>Existing content</title>
+    <link>https://example.test/posts/rss1-existing/</link>
+    <description>Existing media body</description>
+    <media:content url="https://cdn.example.test/existing-content.jpg" medium="image"/>
+  </item>
+</rdf:RDF>

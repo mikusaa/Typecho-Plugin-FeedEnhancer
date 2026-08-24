@@ -1,0 +1,279 @@
+name: CI and Deploy
+
+on:
+  push:
+    branches:
+      - source
+  pull_request:
+    branches:
+      - source
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSER_NO_INTERACTION: '1'
+  COMPOSER_NO_PROGRESS: '1'
+
+jobs:
+  unit:
+    name: PHP ${{ matrix.php }} unit and compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php:
+          - '7.4'
+          - '8.2'
+          - '8.5'
+
+    steps:
+      - name: Check out FeedEnhancer
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, libxml, mbstring
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+      - name: Install development dependencies
+        run: composer install --prefer-dist
+
+      - name: Check PHP syntax
+        run: make lint
+
+      - name: Check coding standards and PHP compatibility
+        run: make phpcs
+
+      - name: Run unit tests
+        run: make test
+
+  http:
+    name: Typecho ${{ matrix.typecho }} / PHP ${{ matrix.php }} HTTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        typecho:
+          - v1.3.0
+          - master
+        php:
+          - '7.4'
+          - '8.2'
+          - '8.5'
+
+    steps:
+      - name: Check out FeedEnhancer
+        uses: actions/checkout@v4
+
+      - name: Check out Typecho
+        uses: actions/checkout@v4
+        with:
+          repository: typecho/typecho
+          ref: ${{ matrix.typecho }}
+          path: typecho
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, dom, libxml, mbstring, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Run SQLite HTTP contract
+        run: bash tests/Integration/run-http.sh "$GITHUB_WORKSPACE/typecho" full
+
+  comments-mysql:
+    name: MySQL recent-comments JOIN
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: feed_enhancer
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Check out FeedEnhancer
+        uses: actions/checkout@v4
+
+      - name: Check out Typecho master
+        uses: actions/checkout@v4
+        with:
+          repository: typecho/typecho
+          ref: master
+          path: typecho
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, libxml, mbstring, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install development dependencies
+        run: composer install --prefer-dist
+
+      - name: Verify filtered JOIN before LIMIT
+        env:
+          TYPECHO_SOURCE_ROOT: ${{ github.workspace }}/typecho
+          FE_DB_DRIVER: mysql
+          FE_DB_HOST: 127.0.0.1
+          FE_DB_PORT: '3306'
+          FE_DB_NAME: feed_enhancer
+          FE_DB_USER: root
+          FE_DB_PASSWORD: root
+        run: php tests/Integration/secure-recent-comments-db.php
+
+  comments-postgresql:
+    name: PostgreSQL recent-comments JOIN
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: feed_enhancer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d feed_enhancer"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Check out FeedEnhancer
+        uses: actions/checkout@v4
+
+      - name: Check out Typecho master
+        uses: actions/checkout@v4
+        with:
+          repository: typecho/typecho
+          ref: master
+          path: typecho
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, libxml, mbstring, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install development dependencies
+        run: composer install --prefer-dist
+
+      - name: Verify filtered JOIN before LIMIT
+        env:
+          TYPECHO_SOURCE_ROOT: ${{ github.workspace }}/typecho
+          FE_DB_DRIVER: pgsql
+          FE_DB_HOST: 127.0.0.1
+          FE_DB_PORT: '5432'
+          FE_DB_NAME: feed_enhancer
+          FE_DB_USER: postgres
+          FE_DB_PASSWORD: postgres
+        run: php tests/Integration/secure-recent-comments-db.php
+
+  package:
+    name: Verify release archive
+    needs:
+      - unit
+      - http
+      - comments-mysql
+      - comments-postgresql
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out FeedEnhancer
+        uses: actions/checkout@v4
+
+      - name: Build and validate archive
+        run: make package
+
+      - name: Verify ZIP integrity
+        run: unzip -tq dist/FeedEnhancer-*.zip
+
+      - name: Verify SHA-256
+        working-directory: dist
+        run: sha256sum --check FeedEnhancer-*.zip.sha256
+
+      - name: Upload verified archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: FeedEnhancer-package
+          path: |
+            dist/FeedEnhancer-*.zip
+            dist/FeedEnhancer-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy plugin files to main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/source'
+    needs:
+      - package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out FeedEnhancer source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download verified package
+        uses: actions/download-artifact@v4
+        with:
+          name: FeedEnhancer-package
+          path: dist
+
+      - name: Verify and unpack plugin
+        run: |
+          cd dist
+          sha256sum --check FeedEnhancer-*.zip.sha256
+          cd ..
+          mkdir -p deploy
+          unzip -q dist/FeedEnhancer-*.zip -d deploy
+          test -f deploy/FeedEnhancer/Plugin.php
+          test ! -e deploy/FeedEnhancer/tests
+          test ! -e deploy/FeedEnhancer/vendor
+
+      - name: Deploy plugin tree
+        uses: peaceiris/actions-gh-pages@v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: main
+          publish_dir: ./deploy/FeedEnhancer
+          allow_empty_commit: false
+          disable_nojekyll: true
+          commit_message: 'deploy: ${{ github.sha }}'

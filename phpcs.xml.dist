@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="FeedEnhancer">
+    <description>FeedEnhancer coding standards and PHP 7.4+ compatibility checks.</description>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+    <arg value="sp"/>
+
+    <file>Plugin.php</file>
+    <file>Feed</file>
+    <file>Http</file>
+    <file>Runtime</file>
+    <file>tests</file>
+
+    <config name="testVersion" value="7.4-"/>
+
+    <rule ref="PSR12">
+        <exclude name="PSR1.Files.SideEffects.FoundWithSymbols"/>
+    </rule>
+    <rule ref="PHPCompatibility"/>
+</ruleset>
