@@ -6,6 +6,7 @@ namespace TypechoPlugin\FeedEnhancer\Runtime;
 
 use Typecho\Plugin;
 use Typecho\Widget;
+use TypechoPlugin\FeedEnhancer\Feed\ContentTruncator;
 use TypechoPlugin\FeedEnhancer\Feed\FeedProxy;
 
 if (!defined('__TYPECHO_ROOT_DIR__')) {
@@ -25,6 +26,14 @@ final class Bootstrap
         Plugin::factory(\Widget\Archive::class)->handleInit_9999 = [
             VisibilityGuard::class,
             'narrowArchive',
+        ];
+        Plugin::factory(self::CONTENTS_PLUGIN_HANDLE)->contentEx_9998 = [
+            ContentTruncator::class,
+            'content',
+        ];
+        Plugin::factory(self::CONTENTS_PLUGIN_HANDLE)->excerptEx_9998 = [
+            ContentTruncator::class,
+            'excerpt',
         ];
         Plugin::factory(self::CONTENTS_PLUGIN_HANDLE)->contentEx_9999 = [
             ContentMetadataCollector::class,

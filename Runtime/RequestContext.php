@@ -25,16 +25,28 @@ final class RequestContext
     private string $format;
     private bool $globalComments;
     private ContentMetadataCollector $metadata;
+    private bool $contentTruncationEnabled;
+    private int $feedContentLength;
+    private string $feedReadMoreText;
+    private bool $feedFullTextOverrideApplied = false;
 
     /**
      * @param string[] $mediaFieldNames
      */
-    private function __construct(string $feedPath, array $mediaFieldNames)
-    {
+    private function __construct(
+        string $feedPath,
+        array $mediaFieldNames,
+        bool $contentTruncationEnabled,
+        int $feedContentLength,
+        string $feedReadMoreText
+    ) {
         $this->feedPath = self::normalizePath($feedPath);
         [$this->format, $this->contentPath] = self::splitProtocol($this->feedPath);
         $this->globalComments = (bool) preg_match('#^/comments/?$#', $this->contentPath);
         $this->metadata = new ContentMetadataCollector($mediaFieldNames);
+        $this->contentTruncationEnabled = $contentTruncationEnabled;
+        $this->feedContentLength = $feedContentLength;
+        $this->feedReadMoreText = $feedReadMoreText;
     }
 
     /**
@@ -42,13 +54,24 @@ final class RequestContext
      *
      * @param string[] $mediaFieldNames
      */
-    public static function enter(string $feedPath, array $mediaFieldNames = []): self
-    {
+    public static function enter(
+        string $feedPath,
+        array $mediaFieldNames = [],
+        bool $contentTruncationEnabled = false,
+        int $feedContentLength = 300,
+        string $feedReadMoreText = '阅读全文'
+    ): self {
         if (null !== self::$current) {
             throw new \LogicException('A FeedEnhancer request context is already active.');
         }
 
-        self::$current = new self($feedPath, $mediaFieldNames);
+        self::$current = new self(
+            $feedPath,
+            $mediaFieldNames,
+            $contentTruncationEnabled,
+            $feedContentLength,
+            $feedReadMoreText
+        );
         return self::$current;
     }
 
@@ -87,6 +110,31 @@ final class RequestContext
     public function metadata(): ContentMetadataCollector
     {
         return $this->metadata;
+    }
+
+    public function contentTruncationEnabled(): bool
+    {
+        return $this->contentTruncationEnabled;
+    }
+
+    public function feedContentLength(): int
+    {
+        return $this->feedContentLength;
+    }
+
+    public function feedReadMoreText(): string
+    {
+        return $this->feedReadMoreText;
+    }
+
+    public function markFeedFullTextOverrideApplied(): void
+    {
+        $this->feedFullTextOverrideApplied = true;
+    }
+
+    public function feedFullTextOverrideApplied(): bool
+    {
+        return $this->feedFullTextOverrideApplied;
     }
 
     /**

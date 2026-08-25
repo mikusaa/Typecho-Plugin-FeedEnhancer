@@ -44,7 +44,13 @@ final class FeedProxy extends Widget
         $ifNoneMatch = $this->request->getHeader('If-None-Match');
         $loggedIn = (bool) \Widget\User::alloc()->hasLogin();
         $feedPath = (string) $this->request->get('feed', '/');
-        $context = RequestContext::enter($feedPath, $settings->mediaFieldNames());
+        $context = RequestContext::enter(
+            $feedPath,
+            $settings->mediaFieldNames(),
+            $settings->contentTruncationEnabled(),
+            $settings->feedContentLength(),
+            $settings->feedReadMoreText()
+        );
         $conditional = new ConditionalResponse();
 
         if ($this->isStylesheetRequest($context, $settings)) {
@@ -72,12 +78,24 @@ final class FeedProxy extends Widget
             return;
         }
 
+        $options = null;
+        $feedFullText = null;
+
         try {
+            if ($context->contentTruncationEnabled()) {
+                $options = \Widget\Options::alloc();
+                $feedFullText = $options->feedFullText;
+            }
+
             $renderer = new CoreFeedRenderer($this->request, $this->response, $this->parameter);
             $xml = $renderer->render($context);
         } catch (\Throwable $exception) {
             $context->leave();
             throw $exception;
+        } finally {
+            if ($context->feedFullTextOverrideApplied() && null !== $options) {
+                $options->feedFullText = $feedFullText;
+            }
         }
 
         $stylesheetUrl = null;

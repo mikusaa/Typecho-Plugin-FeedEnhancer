@@ -30,6 +30,11 @@ final class VisibilityGuard
             return;
         }
 
+        if ($context->contentTruncationEnabled() && !$context->isSingleArchive($archive)) {
+            \Widget\Options::alloc()->feedFullText = true;
+            $context->markFeedFullTextOverrideApplied();
+        }
+
         if (!is_object($select) || !method_exists($select, 'where')) {
             throw new \RuntimeException('FeedEnhancer cannot apply the mandatory feed visibility policy.');
         }

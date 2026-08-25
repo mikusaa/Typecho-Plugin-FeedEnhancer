@@ -24,7 +24,7 @@ final class UrlPolicy
             return null;
         }
 
-        $reference = @parse_url($candidate);
+        $reference = $this->parseUrl($candidate);
 
         if (false === $reference || isset($reference['user']) || isset($reference['pass'])) {
             return null;
@@ -90,9 +90,52 @@ final class UrlPolicy
             return null;
         }
 
-        $parts = @parse_url($url);
+        $parts = $this->parseUrl($url);
         if (false === $parts || null === $this->build($parts)) {
             return null;
+        }
+
+        return $parts;
+    }
+
+    /**
+     * PHP 8.5's URL parser replaces non-ASCII bytes in URL components. Shield
+     * them with collision-free ASCII tokens, then restore the parsed values.
+     *
+     * @return array<string,mixed>|false
+     */
+    private function parseUrl(string $url)
+    {
+        $prefix = '__FE_UTF8_';
+        while (false !== strpos($url, $prefix)) {
+            $prefix = '_' . $prefix;
+        }
+
+        $replacements = [];
+        $index = 0;
+        $protected = preg_replace_callback(
+            '/[\x80-\xFF]/',
+            static function (array $matches) use ($prefix, &$replacements, &$index): string {
+                $token = $prefix . $index++ . '__';
+                $replacements[$token] = $matches[0];
+                return $token;
+            },
+            $url
+        );
+
+        if (null === $protected) {
+            return false;
+        }
+
+        $parts = @parse_url($protected);
+        if (false === $parts || [] === $replacements) {
+            return $parts;
+        }
+
+        foreach ($parts as $name => $value) {
+            if (is_string($value)) {
+                $parts[$name] = strtr($value, $replacements);
+            }
         }
 
         return $parts;
