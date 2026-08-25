@@ -64,14 +64,46 @@ require $configFile;
 
 $mode = $argv[1] ?? 'seed';
 
-if ('safari-on' === $mode) {
-    \Utils\Helper::configPlugin('FeedEnhancer', [
+/** @param array<string,string> $overrides */
+function configureFeedEnhancer(array $overrides = []): void
+{
+    \Utils\Helper::configPlugin('FeedEnhancer', array_merge([
+        'feedContentMode' => '0',
+        'feedContentLength' => '300',
+        'feedReadMoreText' => '阅读全文',
         'stylesheetEnabled' => '1',
-        'safariXmlMime' => '1',
+        'safariXmlMime' => '0',
         'mediaEnabled' => '1',
         'mediaFieldNames' => 'banner,cover,thumbnail',
+    ], $overrides));
+}
+
+if ('safari-on' === $mode) {
+    configureFeedEnhancer([
+        'safariXmlMime' => '1',
     ]);
     fwrite(STDOUT, "Enabled Safari XML MIME compatibility.\n");
+    exit(0);
+}
+
+if ('truncation-on' === $mode) {
+    configureFeedEnhancer([
+        'feedContentMode' => '1',
+        'feedContentLength' => '50',
+        'feedReadMoreText' => 'FE-CI-READ-MORE',
+    ]);
+    fwrite(STDOUT, "Enabled Feed content truncation.\n");
+    exit(0);
+}
+
+if ('truncation-on-full-text' === $mode) {
+    \Utils\Helper::setOption('feedFullText', 1);
+    configureFeedEnhancer([
+        'feedContentMode' => '1',
+        'feedContentLength' => '50',
+        'feedReadMoreText' => 'FE-CI-READ-MORE',
+    ]);
+    fwrite(STDOUT, "Enabled Feed content truncation with feedFullText=1.\n");
     exit(0);
 }
 
@@ -110,12 +142,8 @@ require_once $probeFile;
 
 \Utils\Helper::setOption('plugins', \Typecho\Plugin::export());
 \Utils\Helper::setOption('rewrite', 1);
-\Utils\Helper::configPlugin('FeedEnhancer', [
-    'stylesheetEnabled' => '1',
-    'safariXmlMime' => '0',
-    'mediaEnabled' => '1',
-    'mediaFieldNames' => 'banner,cover,thumbnail',
-]);
+\Utils\Helper::setOption('feedFullText', 0);
+configureFeedEnhancer();
 
 $db = \Typecho\Db::get();
 
@@ -322,6 +350,89 @@ $contents = [
         'allowPing' => 1,
         'allowFeed' => 1,
         'parent' => 0,
+    ],
+    [
+        'cid' => 121,
+        'title' => 'FE-MORE-TITLE-SENTINEL',
+        'slug' => 'fe-more-content',
+        'created' => $created + 120,
+        'modified' => $created + 120,
+        'text' => '<p>FE-MORE-LEAD-' . str_repeat('X', 60) . '</p><!--more-->'
+            . '<p>FE-MORE-TAIL-SENTINEL</p><img src="/media/more-body.jpg" alt="">',
+        'authorId' => 1,
+        'type' => 'post',
+        'status' => 'publish',
+        'password' => null,
+        'commentsNum' => 0,
+        'allowComment' => 1,
+        'allowPing' => 1,
+        'allowFeed' => 1,
+        'parent' => 0,
+    ],
+    [
+        'cid' => 122,
+        'title' => 'FE-NOMORE-TITLE-SENTINEL',
+        'slug' => 'fe-no-more-content',
+        'created' => $created + 180,
+        'modified' => $created + 180,
+        'text' => '<p>FE-NOMORE-LEAD-' . str_repeat('Y', 60) . '</p>'
+            . '<img src="/media/no-more-body.jpg" alt="">'
+            . '<p>FE-NOMORE-TAIL-SENTINEL</p>',
+        'authorId' => 1,
+        'type' => 'post',
+        'status' => 'publish',
+        'password' => null,
+        'commentsNum' => 0,
+        'allowComment' => 1,
+        'allowPing' => 1,
+        'allowFeed' => 1,
+        'parent' => 0,
+    ],
+    [
+        'cid' => 123,
+        'title' => 'FE-NOMORE-ATTACHMENT',
+        'slug' => 'fe-no-more-attachment.jpg',
+        'created' => $created + 181,
+        'modified' => $created + 181,
+        'text' => json_encode([
+            'name' => 'fe-no-more-attachment.jpg',
+            'path' => '/media/no-more-attachment.jpg',
+            'size' => 1024,
+            'type' => 'jpg',
+            'mime' => 'image/jpeg',
+        ]),
+        'authorId' => 1,
+        'type' => 'attachment',
+        'status' => 'publish',
+        'password' => null,
+        'commentsNum' => 0,
+        'allowComment' => 0,
+        'allowPing' => 0,
+        'allowFeed' => 1,
+        'parent' => 122,
+    ],
+    [
+        'cid' => 124,
+        'title' => 'FE-FIELD-PRIORITY-ATTACHMENT',
+        'slug' => 'fe-field-priority-attachment.jpg',
+        'created' => $created + 1,
+        'modified' => $created + 1,
+        'text' => json_encode([
+            'name' => 'fe-field-priority-attachment.jpg',
+            'path' => '/media/field-priority-attachment.jpg',
+            'size' => 2048,
+            'type' => 'jpg',
+            'mime' => 'image/jpeg',
+        ]),
+        'authorId' => 1,
+        'type' => 'attachment',
+        'status' => 'publish',
+        'password' => null,
+        'commentsNum' => 0,
+        'allowComment' => 0,
+        'allowPing' => 0,
+        'allowFeed' => 1,
+        'parent' => 100,
     ],
 ];
 

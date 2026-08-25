@@ -27,6 +27,10 @@ final class Plugin implements PluginInterface
             self::class,
             'poisonResponseHeaders',
         ];
+        TypechoCorePlugin::factory('index.php')->end_9999 = [
+            self::class,
+            'recordFeedFullText',
+        ];
         TypechoCorePlugin::factory(\Widget\Base\Contents::class)->contentEx_100 = [
             self::class,
             'content',
@@ -85,6 +89,17 @@ final class Plugin implements PluginInterface
         }
     }
 
+    public static function recordFeedFullText(): void
+    {
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        $path = parse_url((string) $requestUri, PHP_URL_PATH);
+        if (!is_string($path) || 0 !== strpos($path, '/feed')) {
+            return;
+        }
+
+        self::record('feedFullText:' . (int) (bool) \Widget\Options::alloc()->feedFullText);
+    }
+
     /** @param mixed $content @param mixed $widget @param mixed $lastResult */
     public static function content($content, $widget, $lastResult = null): string
     {
@@ -110,6 +125,10 @@ final class Plugin implements PluginInterface
     {
         $cid = (int) $archive->cid;
         self::record('feedItem:' . $cid);
+        self::record(
+            'feedItemFeedFullText:' . $cid . ':'
+            . (int) (bool) \Widget\Options::alloc()->feedFullText
+        );
 
         return '<probe:feed-item xmlns:probe="urn:feed-enhancer:ci:probe">'
             . 'FE-FEED-ITEM-SUFFIX-' . $cid
@@ -121,6 +140,10 @@ final class Plugin implements PluginInterface
     {
         $coid = (int) $comment->coid;
         self::record('commentFeedItem:' . $coid);
+        self::record(
+            'commentFeedItemFeedFullText:' . $coid . ':'
+            . (int) (bool) \Widget\Options::alloc()->feedFullText
+        );
 
         return '<probe:comment-item xmlns:probe="urn:feed-enhancer:ci:probe">'
             . 'FE-COMMENT-ITEM-SUFFIX-' . $coid

@@ -13,7 +13,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 final class Settings
 {
     private const DEFAULT_FIELD_NAMES = ['banner', 'cover', 'thumbnail'];
+    private const DEFAULT_FEED_CONTENT_LENGTH = 300;
+    private const DEFAULT_FEED_READ_MORE_TEXT = '阅读全文';
 
+    private bool $contentTruncationEnabled;
+    private int $feedContentLength;
+    private string $feedReadMoreText;
     private bool $stylesheetEnabled;
     private bool $safariXmlMime;
     private bool $mediaEnabled;
@@ -26,6 +31,13 @@ final class Settings
      */
     public function __construct(array $values = [])
     {
+        $this->contentTruncationEnabled = self::booleanValue($values, 'feedContentMode', false);
+        $this->feedContentLength = array_key_exists('feedContentLength', $values)
+            ? self::normalizeFeedContentLength($values['feedContentLength'])
+            : self::DEFAULT_FEED_CONTENT_LENGTH;
+        $this->feedReadMoreText = array_key_exists('feedReadMoreText', $values)
+            ? self::normalizeFeedReadMoreText($values['feedReadMoreText'])
+            : self::DEFAULT_FEED_READ_MORE_TEXT;
         $this->stylesheetEnabled = self::booleanValue($values, 'stylesheetEnabled', true);
         $this->safariXmlMime = self::booleanValue($values, 'safariXmlMime', false);
         $this->mediaEnabled = self::booleanValue($values, 'mediaEnabled', true);
@@ -39,7 +51,17 @@ final class Settings
         try {
             $config = Options::alloc()->plugin('FeedEnhancer');
             $values = [];
-            foreach (['stylesheetEnabled', 'safariXmlMime', 'mediaEnabled', 'mediaFieldNames'] as $key) {
+            foreach (
+                [
+                    'feedContentMode',
+                    'feedContentLength',
+                    'feedReadMoreText',
+                    'stylesheetEnabled',
+                    'safariXmlMime',
+                    'mediaEnabled',
+                    'mediaFieldNames',
+                ] as $key
+            ) {
                 $value = $config->{$key};
                 if (null !== $value) {
                     $values[$key] = $value;
@@ -50,6 +72,21 @@ final class Settings
         } catch (\Throwable $exception) {
             return new self();
         }
+    }
+
+    public function contentTruncationEnabled(): bool
+    {
+        return $this->contentTruncationEnabled;
+    }
+
+    public function feedContentLength(): int
+    {
+        return $this->feedContentLength;
+    }
+
+    public function feedReadMoreText(): string
+    {
+        return $this->feedReadMoreText;
     }
 
     public function stylesheetEnabled(): bool
@@ -71,6 +108,59 @@ final class Settings
     public function mediaFieldNames(): array
     {
         return $this->mediaFieldNames;
+    }
+
+    /** @param mixed $value */
+    public static function isValidFeedContentLength($value): bool
+    {
+        if (is_int($value)) {
+            $length = $value;
+        } elseif (is_string($value) && preg_match('/^[0-9]{1,4}$/D', $value) === 1) {
+            $length = (int) $value;
+        } else {
+            return false;
+        }
+
+        return $length >= 50 && $length <= 1000;
+    }
+
+    /** @param mixed $value */
+    public static function normalizeFeedContentLength($value): int
+    {
+        return self::isValidFeedContentLength($value)
+            ? (int) $value
+            : self::DEFAULT_FEED_CONTENT_LENGTH;
+    }
+
+    /** @param mixed $value */
+    public static function isValidFeedReadMoreText($value): bool
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+
+        if ('' === $value || 1 !== preg_match('//u', $value)) {
+            return false;
+        }
+
+        if (1 === preg_match('/\p{Cc}/u', $value)) {
+            return false;
+        }
+
+        $text = self::trimUnicodeWhitespace($value);
+        if ('' === $text || 1 === preg_match('/[<>]/u', $text)) {
+            return false;
+        }
+
+        return self::unicodeLength($text) <= 100;
+    }
+
+    /** @param mixed $value */
+    public static function normalizeFeedReadMoreText($value): string
+    {
+        return self::isValidFeedReadMoreText($value)
+            ? self::trimUnicodeWhitespace($value)
+            : self::DEFAULT_FEED_READ_MORE_TEXT;
     }
 
     /**
@@ -118,5 +208,17 @@ final class Settings
         }
 
         return $values[$key] === true || $values[$key] === 1 || $values[$key] === '1';
+    }
+
+    private static function unicodeLength(string $value): int
+    {
+        $count = preg_match_all('/./us', $value, $matches);
+        return false === $count ? 0 : $count;
+    }
+
+    private static function trimUnicodeWhitespace(string $value): string
+    {
+        $trimmed = preg_replace('/\A[\s\p{Z}]+|[\s\p{Z}]+\z/u', '', $value);
+        return null === $trimmed ? $value : $trimmed;
     }
 }

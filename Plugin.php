@@ -11,23 +11,24 @@ use Typecho\Widget\Helper\Form;
 use Typecho\Widget\Helper\Form\Element\Radio;
 use Typecho\Widget\Helper\Form\Element\Text;
 use TypechoPlugin\FeedEnhancer\Runtime\Bootstrap;
+use TypechoPlugin\FeedEnhancer\Runtime\Settings;
 
 if (!defined('__TYPECHO_ROOT_DIR__')) {
     exit;
 }
 
 /**
- * 在保留 Typecho 原生 Feed 与主题内容过滤链的前提下，增强隐私、媒体、浏览器预览和 HTTP 缓存协商。
+ * 在保留 Typecho 原生 Feed 地址与主题内容过滤链的前提下，增强正文输出、隐私、媒体、浏览器预览和 HTTP 缓存协商。
  *
  * @package FeedEnhancer
  * @author mikusa
  * @link https://github.com/mikusaa/Typecho-Plugin-FeedEnhancer
- * @version 1.0.0
+ * @version 1.1.0
  * @since 1.3.0
  */
 final class Plugin implements PluginInterface
 {
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.1.0';
 
     public static function activate(): string
     {
@@ -45,7 +46,7 @@ final class Plugin implements PluginInterface
 
         Bootstrap::register();
 
-        return _t('FeedEnhancer 已启用，现有 Feed 地址将继续使用 Typecho 原生内容过滤链。');
+        return _t('FeedEnhancer 已启用，默认保留 Typecho 原生正文；可在插件设置中启用正文开头模式。');
     }
 
     public static function deactivate(): void
@@ -54,6 +55,45 @@ final class Plugin implements PluginInterface
 
     public static function config(Form $form): void
     {
+        $feedContentMode = new Radio(
+            'feedContentMode',
+            ['0' => _t('保持 Typecho 默认行为'), '1' => _t('仅输出正文开头')],
+            '0',
+            _t('Feed 正文输出'),
+            _t('启用后仅在文章 Feed 中输出正文首个有效文本块并追加原文链接，优先于聚合全文和 <code>&lt;!--more--&gt;</code> 设置。')
+        );
+        $feedContentMode->addRule('required', _t('Feed 正文输出设置不能为空。'));
+        $feedContentMode->addRule('enum', _t('Feed 正文输出设置无效。'), ['0', '1']);
+        $form->addInput($feedContentMode);
+
+        $feedContentLength = new Text(
+            'feedContentLength',
+            null,
+            '300',
+            _t('正文开头长度'),
+            _t('仅在截断模式下生效；请输入 50 至 1000 的整数，按 Unicode 字符计算，省略号计入总长度。')
+        );
+        $feedContentLength->addRule('required', _t('正文开头长度不能为空。'));
+        $feedContentLength->addRule(
+            [self::class, 'validateFeedContentLength'],
+            _t('正文开头长度必须是 50 至 1000 的整数。')
+        );
+        $form->addInput($feedContentLength);
+
+        $feedReadMoreText = new Text(
+            'feedReadMoreText',
+            null,
+            '阅读全文',
+            _t('阅读全文文字'),
+            _t('仅在截断模式下生效；请输入 1 至 100 个 Unicode 字符的纯文本，不允许 HTML 标记。')
+        );
+        $feedReadMoreText->addRule('required', _t('阅读全文文字不能为空。'));
+        $feedReadMoreText->addRule(
+            [self::class, 'validateFeedReadMoreText'],
+            _t('阅读全文文字必须是 1 至 100 个 Unicode 字符，且不能包含控制字符或 HTML 标记。')
+        );
+        $form->addInput($feedReadMoreText);
+
         $stylesheet = new Radio(
             'stylesheetEnabled',
             ['1' => _t('启用'), '0' => _t('关闭')],
@@ -97,6 +137,18 @@ final class Plugin implements PluginInterface
 
     public static function personalConfig(Form $form): void
     {
+    }
+
+    /** @param mixed $value */
+    public static function validateFeedContentLength($value): bool
+    {
+        return Settings::isValidFeedContentLength($value);
+    }
+
+    /** @param mixed $value */
+    public static function validateFeedReadMoreText($value): bool
+    {
+        return Settings::isValidFeedReadMoreText($value);
     }
 
     public static function validateFieldNames(string $value): bool

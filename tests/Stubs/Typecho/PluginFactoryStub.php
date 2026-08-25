@@ -17,5 +17,6 @@ final class PluginFactoryStub
     public function __set(string $component, $callback): void
     {
         Plugin::$registrations[] = [$this->handle, $component];
+        Plugin::$callbacks[$this->handle][$component] = $callback;
     }
 }

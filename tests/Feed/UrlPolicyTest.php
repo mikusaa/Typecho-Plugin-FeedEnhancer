@@ -90,4 +90,18 @@ final class UrlPolicyTest extends TestCase
             )
         );
     }
+
+    public function testUnicodeUrlComponentsSurviveParsing(): void
+    {
+        $policy = new UrlPolicy();
+
+        self::assertSame(
+            'https://example.test/blog/图片/封面.jpg?label=中文#原图',
+            $policy->resolve(
+                '../图片/封面.jpg?label=中文#原图',
+                'https://example.test/blog/posts/文章'
+            )
+        );
+        self::assertTrue($policy->isSafeAbsolute('https://example.test/文章/一/'));
+    }
 }
