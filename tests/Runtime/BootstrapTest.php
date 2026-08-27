@@ -65,7 +65,7 @@ final class BootstrapTest extends TestCase
 
         try {
             self::assertFalse($context->contentTruncationEnabled());
-            self::assertSame(300, $context->feedContentLength());
+            self::assertSame(100, $context->feedContentLength());
             self::assertSame('阅读全文', $context->feedReadMoreText());
         } finally {
             $context->leave();

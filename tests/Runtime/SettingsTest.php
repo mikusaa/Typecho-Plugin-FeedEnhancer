@@ -14,7 +14,7 @@ final class SettingsTest extends TestCase
         $settings = new Settings();
 
         self::assertFalse($settings->contentTruncationEnabled());
-        self::assertSame(300, $settings->feedContentLength());
+        self::assertSame(100, $settings->feedContentLength());
         self::assertSame('阅读全文', $settings->feedReadMoreText());
         self::assertTrue($settings->stylesheetEnabled());
         self::assertFalse($settings->safariXmlMime());
@@ -48,12 +48,12 @@ final class SettingsTest extends TestCase
 
     public function testFeedContentLengthAcceptsOnlyStrictIntegersWithinBounds(): void
     {
-        foreach ([50, '50', 300, '300', 1000, '1000'] as $valid) {
+        foreach ([50, '50', 100, '100', 300, '300', 1000, '1000'] as $valid) {
             self::assertSame((int) $valid, (new Settings(['feedContentLength' => $valid]))->feedContentLength());
         }
 
         foreach ([49, '49', 1001, '1001', '300.0', ' 300 ', 300.0, true, null, []] as $invalid) {
-            self::assertSame(300, (new Settings(['feedContentLength' => $invalid]))->feedContentLength());
+            self::assertSame(100, (new Settings(['feedContentLength' => $invalid]))->feedContentLength());
         }
     }
 

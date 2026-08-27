@@ -573,7 +573,8 @@ function runTruncationContract(string $baseUrl, string $probeLog, array $fixture
         'atom' => ['/feed/atom/', 'application/atom+xml'],
     ];
     $expectedMoreTeaser = 'FE-MORE-LEAD-' . str_repeat('X', 34) . '...';
-    $expectedNoMoreTeaser = 'FE-NOMORE-LEAD-' . str_repeat('Y', 32) . '...';
+    $expectedNoMoreTeaser = 'FE-NOMORE-SHORT FE-NOMORE-SECOND-'
+        . str_repeat('Y', 14) . '...';
     $fieldMediaUrl = $baseUrl . '/media/field-cover.jpg';
     $attachmentMediaUrl = $baseUrl . '/media/no-more-attachment.jpg';
     $rss2 = null;
@@ -606,6 +607,7 @@ function runTruncationContract(string $baseUrl, string $probeLog, array $fixture
             $noMoreContent,
             [
                 'FE-NOMORE-TAIL-SENTINEL',
+                'FE-NOMORE-HEADING',
                 'FE-CONTENT-HOOK-122',
                 'FE-EXCERPT-HOOK-122',
                 '/media/no-more-body.jpg',
@@ -838,7 +840,11 @@ function runFeedFullTextRestoreOneContract(string $baseUrl, string $probeLog): v
     assertStatus($response, 200, 'feedFullText=1 restoration');
     $document = parseFeedXml($response->body, 'feedFullText=1 restoration');
     $content = feedEntryContent($document, 'rss2', '/archives/122/');
-    assertContainsAll($content, ['FE-NOMORE-LEAD-', 'FE-CI-READ-MORE'], 'feedFullText=1 restoration');
+    assertContainsAll(
+        $content,
+        ['FE-NOMORE-SHORT', 'FE-NOMORE-SECOND-', 'FE-CI-READ-MORE'],
+        'feedFullText=1 restoration'
+    );
     contractAssert(
         1 === probeEventCount($probeLog, 'feedFullText:1'),
         'The original feedFullText=1 value was not restored after rendering.'
@@ -907,8 +913,8 @@ function runFullContract(
         'RSS2 is missing its stylesheet instruction.'
     );
     contractAssert(
-        false !== strpos($responses['rss2']->body, 'v=1.1.0'),
-        'RSS2 stylesheet instruction did not use the 1.1.0 cachebuster.'
+        false !== strpos($responses['rss2']->body, 'v=1.2.0'),
+        'RSS2 stylesheet instruction did not use the 1.2.0 cachebuster.'
     );
     contractAssert(
         false === strpos($responses['rss1']->body, 'feed-enhancer-stylesheet=1'),
@@ -1136,7 +1142,7 @@ function runFullContract(
         'RSS2 POST'
     );
 
-    $stylesheetUrl = $baseUrl . '/feed/?feed-enhancer-stylesheet=1&v=1.1.0';
+    $stylesheetUrl = $baseUrl . '/feed/?feed-enhancer-stylesheet=1&v=1.2.0';
     $stylesheet = contractRequest('GET', $stylesheetUrl);
     assertStatus($stylesheet, 200, 'XSL endpoint');
     assertContentType($stylesheet, 'application/xslt+xml', 'XSL endpoint');

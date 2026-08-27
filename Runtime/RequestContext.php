@@ -58,7 +58,7 @@ final class RequestContext
         string $feedPath,
         array $mediaFieldNames = [],
         bool $contentTruncationEnabled = false,
-        int $feedContentLength = 300,
+        int $feedContentLength = 100,
         string $feedReadMoreText = '阅读全文'
     ): self {
         if (null !== self::$current) {

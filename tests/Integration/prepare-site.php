@@ -69,7 +69,7 @@ function configureFeedEnhancer(array $overrides = []): void
 {
     \Utils\Helper::configPlugin('FeedEnhancer', array_merge([
         'feedContentMode' => '0',
-        'feedContentLength' => '300',
+        'feedContentLength' => '100',
         'feedReadMoreText' => '阅读全文',
         'stylesheetEnabled' => '1',
         'safariXmlMime' => '0',
@@ -187,7 +187,8 @@ $contents = [
         'slug' => 'fe-public-visible',
         'created' => $created,
         'modified' => $modified,
-        'text' => '<p>FE-PUBLIC-BODY-SENTINEL</p><img src="/media/body.jpg" alt="">',
+        'text' => '<p>FE-PUBLIC-BODY-SENTINEL-' . str_repeat('P', 60) . '</p>'
+            . '<img src="/media/body.jpg" alt="">',
         'authorId' => 1,
         'type' => 'post',
         'status' => 'publish',
@@ -375,8 +376,10 @@ $contents = [
         'slug' => 'fe-no-more-content',
         'created' => $created + 180,
         'modified' => $created + 180,
-        'text' => '<p>FE-NOMORE-LEAD-' . str_repeat('Y', 60) . '</p>'
+        'text' => '<p>FE-NOMORE-SHORT</p>'
             . '<img src="/media/no-more-body.jpg" alt="">'
+            . '<h2>FE-NOMORE-HEADING</h2>'
+            . '<p>FE-NOMORE-SECOND-' . str_repeat('Y', 60) . '</p>'
             . '<p>FE-NOMORE-TAIL-SENTINEL</p>',
         'authorId' => 1,
         'type' => 'post',

@@ -58,13 +58,15 @@ final class ContentTruncatorTest extends TestCase
 
         $content = ContentTruncator::content($source, $widget);
         self::assertSame(
-            '<p>First paragraph</p>'
+            '<p>First paragraph Second paragraph</p>'
                 . '<p class="more"><a href="https://example.test/posts/one?a=1&amp;b=2">'
                 . 'Read &amp; &quot;continue&quot;</a></p>',
             $content
         );
-        self::assertSame('<p>First paragraph</p>', ContentTruncator::excerpt($content, $widget));
-        self::assertStringNotContainsString('Second paragraph', $content);
+        self::assertSame(
+            '<p>First paragraph Second paragraph</p>',
+            ContentTruncator::excerpt($content, $widget)
+        );
     }
 
     public function testEnabledFilteringUsesThePreviousFiltersFinalResult(): void
@@ -76,16 +78,16 @@ final class ContentTruncatorTest extends TestCase
             '<p>Filtered result</p><p>Discarded</p>'
         );
 
-        self::assertStringStartsWith('<p>Filtered result</p>', $output);
+        self::assertStringStartsWith('<p>Filtered result Discarded</p>', $output);
         self::assertStringNotContainsString('Original', $output);
-        self::assertStringNotContainsString('Discarded', $output);
+        self::assertStringContainsString('Discarded', $output);
     }
 
     public function testCoreMoreMarkerDoesNotLeakTheRemainderOrSurvive(): void
     {
         $this->enter(true);
         $output = ContentTruncator::content(
-            '<p>Before marker</p><!--more--><p>After marker</p>',
+            '<div><p>Before marker</p><!--more--><p>After marker</p></div><p>Outside</p>',
             $this->widget()
         );
 
@@ -117,7 +119,7 @@ final class ContentTruncatorTest extends TestCase
         );
 
         self::assertSame(
-            '<p>Actual lead</p>'
+            '<p>Actual lead Remainder</p>'
                 . '<p class="more"><a href="https://example.test/posts/example">New label</a></p>',
             $output
         );
@@ -151,11 +153,14 @@ final class ContentTruncatorTest extends TestCase
 
         $output = ContentTruncator::content($source, $this->widget());
 
-        self::assertStringStartsWith('<p>First line bold &amp; safe text</p>', $output);
+        self::assertStringStartsWith(
+            '<p>First line bold &amp; safe text Secret remainder</p>',
+            $output
+        );
         foreach (
             [
                 'Heading', 'Image text', 'Caption', 'Preformatted', 'Code', 'Script', 'Style',
-                'Template', 'Frame', 'Form', 'Secret remainder', '<strong>',
+                'Template', 'Frame', 'Form', '<strong>',
             ] as $unexpected
         ) {
             self::assertStringNotContainsString($unexpected, $output);
@@ -170,8 +175,7 @@ final class ContentTruncatorTest extends TestCase
             $this->widget()
         );
 
-        self::assertStringStartsWith('<p>Lead ending</p>', $output);
-        self::assertStringNotContainsString('Secret', $output);
+        self::assertStringStartsWith('<p>Lead ending Secret</p>', $output);
     }
 
     public function testHiddenAndClosedDetailsAreSkippedButOpenDetailsRemainVisible(): void
@@ -191,8 +195,7 @@ final class ContentTruncatorTest extends TestCase
             '<details open><summary>Summary</summary><p>Expanded</p></details><p>Later</p>',
             $widget
         );
-        self::assertStringStartsWith('<p>Expanded</p>', $open);
-        self::assertStringNotContainsString('Later', $open);
+        self::assertStringStartsWith('<p>Expanded Later</p>', $open);
     }
 
     /** @dataProvider blockProvider */
@@ -210,18 +213,53 @@ final class ContentTruncatorTest extends TestCase
     public function blockProvider(): array
     {
         return [
-            'paragraph' => ['<p>Paragraph</p><p>Later</p>', '<p>Paragraph</p>'],
-            'quote' => ['<blockquote> Quoted <em>text</em> </blockquote><p>Later</p>', '<p>Quoted text</p>'],
+            'paragraph' => ['<p>Paragraph</p><p>Later</p>', '<p>Paragraph Later</p>'],
+            'quote' => [
+                '<blockquote> Quoted <em>text</em> </blockquote><p>Later</p>',
+                '<p>Quoted text Later</p>',
+            ],
             'unordered list' => [
                 '<ul><li>First <strong>item</strong></li><li>Second&nbsp;item &amp; more</li>'
                     . '<li><img src="/empty.jpg"></li></ul><p>Later</p>',
-                '<p>First item' . "\xEF\xBC\x9B" . 'Second item &amp; more</p>',
+                '<p>First item' . "\xEF\xBC\x9B" . 'Second item &amp; more Later</p>',
             ],
             'ordered list' => [
                 '<ol><li>One</li><li>Two</li></ol><p>Later</p>',
-                '<p>One' . "\xEF\xBC\x9B" . 'Two</p>',
+                '<p>One' . "\xEF\xBC\x9B" . 'Two Later</p>',
             ],
         ];
+    }
+
+    public function testMultipleBlocksShareOneConfiguredCharacterBudget(): void
+    {
+        $this->enter(true, 20);
+        $output = ContentTruncator::content(
+            '<p>abc</p><figure><img src="/cover.jpg" alt="Cover"></figure>'
+                . '<h2>Heading</h2><p>defghijklmnopqrstuvwxyz</p><p>tail</p>',
+            $this->widget()
+        );
+
+        self::assertStringStartsWith('<p>abc defghijklmnop...</p>', $output);
+        self::assertStringNotContainsString('Cover', $output);
+        self::assertStringNotContainsString('Heading', $output);
+        self::assertStringNotContainsString('tail', $output);
+    }
+
+    public function testAllEligibleBlocksAreJoinedWithoutEllipsisWhenTheyFit(): void
+    {
+        $this->enter(true, 100);
+        $output = ContentTruncator::content(
+            '<p>One</p><blockquote><p>Two</p></blockquote>'
+                . '<ol><li>Three</li><li>Four</li></ol>',
+            $this->widget()
+        );
+
+        self::assertStringStartsWith(
+            '<p>One Two Three' . "\xEF\xBC\x9B" . 'Four</p>',
+            $output
+        );
+        self::assertSame(1, substr_count($output, 'Two'));
+        self::assertStringNotContainsString('...', $output);
     }
 
     public function testPlainTextAndMalformedHtmlUseVisibleTextFallback(): void
@@ -236,6 +274,10 @@ final class ContentTruncatorTest extends TestCase
         self::assertStringStartsWith(
             '<p>Unclosed still visible</p>',
             ContentTruncator::content('<p>Unclosed <strong>still visible', $widget)
+        );
+        self::assertStringStartsWith(
+            '<p>Plain before marker</p>',
+            ContentTruncator::content('Plain before marker<!--more-->Secret', $widget)
         );
     }
 
@@ -362,7 +404,7 @@ final class ContentTruncatorTest extends TestCase
 
     private function enter(
         bool $enabled,
-        int $length = 300,
+        int $length = 100,
         string $label = 'Read',
         string $path = '/'
     ): void {
