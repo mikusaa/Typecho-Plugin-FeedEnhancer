@@ -23,12 +23,12 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  * @package FeedEnhancer
  * @author mikusa
  * @link https://github.com/mikusaa/Typecho-Plugin-FeedEnhancer
- * @version 1.1.0
+ * @version 1.2.0
  * @since 1.3.0
  */
 final class Plugin implements PluginInterface
 {
-    public const VERSION = '1.1.0';
+    public const VERSION = '1.2.0';
 
     public static function activate(): string
     {
@@ -60,7 +60,7 @@ final class Plugin implements PluginInterface
             ['0' => _t('保持 Typecho 默认行为'), '1' => _t('仅输出正文开头')],
             '0',
             _t('Feed 正文输出'),
-            _t('启用后仅在文章 Feed 中输出正文首个有效文本块并追加原文链接，优先于聚合全文和 <code>&lt;!--more--&gt;</code> 设置。')
+            _t('启用后在文章 Feed 中按顺序累计正文有效文本块，达到设置长度后截断并追加原文链接；显式 <code>&lt;!--more--&gt;</code> 仍作为正文边界。')
         );
         $feedContentMode->addRule('required', _t('Feed 正文输出设置不能为空。'));
         $feedContentMode->addRule('enum', _t('Feed 正文输出设置无效。'), ['0', '1']);
@@ -69,7 +69,7 @@ final class Plugin implements PluginInterface
         $feedContentLength = new Text(
             'feedContentLength',
             null,
-            '300',
+            '100',
             _t('正文开头长度'),
             _t('仅在截断模式下生效；请输入 50 至 1000 的整数，按 Unicode 字符计算，省略号计入总长度。')
         );

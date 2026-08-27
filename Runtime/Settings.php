@@ -13,7 +13,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 final class Settings
 {
     private const DEFAULT_FIELD_NAMES = ['banner', 'cover', 'thumbnail'];
-    private const DEFAULT_FEED_CONTENT_LENGTH = 300;
+    private const DEFAULT_FEED_CONTENT_LENGTH = 100;
     private const DEFAULT_FEED_READ_MORE_TEXT = '阅读全文';
 
     private bool $contentTruncationEnabled;

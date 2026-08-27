@@ -88,7 +88,7 @@ final class ContentTruncator
 
     private static function renderTeaser(string $html, int $maximumLength): string
     {
-        $text = self::extractLeadText($html);
+        $text = self::extractLeadText($html, $maximumLength);
         if ('' === $text) {
             return '';
         }
@@ -113,7 +113,7 @@ final class ContentTruncator
             . self::escape($label) . '</a></p>';
     }
 
-    private static function extractLeadText(string $html): string
+    private static function extractLeadText(string $html, int $maximumLength): string
     {
         if ('' === $html || !class_exists(DOMDocument::class)) {
             return '';
@@ -124,8 +124,18 @@ final class ContentTruncator
             return '';
         }
 
-        $candidate = self::firstCandidate($root);
-        return null === $candidate ? self::visibleText($root) : $candidate;
+        $blocks = [];
+        $length = 0;
+        $moreBoundaryReached = false;
+        self::collectLeadBlocks(
+            $root,
+            $blocks,
+            $length,
+            $maximumLength,
+            $moreBoundaryReached
+        );
+
+        return [] === $blocks ? self::visibleText($root) : implode(' ', $blocks);
     }
 
     private static function parseFragment(string $html): ?DOMElement
@@ -156,9 +166,22 @@ final class ContentTruncator
         return $body instanceof DOMElement ? $body : null;
     }
 
-    private static function firstCandidate(DOMNode $parent): ?string
-    {
+    /**
+     * @param string[] $blocks
+     */
+    private static function collectLeadBlocks(
+        DOMNode $parent,
+        array &$blocks,
+        int &$length,
+        int $maximumLength,
+        bool &$moreBoundaryReached
+    ): bool {
         foreach ($parent->childNodes as $child) {
+            if (self::isMoreMarker($child)) {
+                $moreBoundaryReached = true;
+                return false;
+            }
+
             if (!$child instanceof DOMElement || self::ignoredElement($child)) {
                 continue;
             }
@@ -166,52 +189,84 @@ final class ContentTruncator
             $name = strtolower($child->localName);
             if (in_array($name, ['p', 'blockquote', 'ul', 'ol'], true)) {
                 $text = in_array($name, ['ul', 'ol'], true)
-                    ? self::listText($child)
-                    : self::visibleText($child);
+                    ? self::listText($child, $moreBoundaryReached)
+                    : self::visibleTextWithBoundary($child, $moreBoundaryReached);
                 if ('' !== $text) {
-                    return $text;
+                    if ([] !== $blocks) {
+                        ++$length;
+                    }
+
+                    $blocks[] = $text;
+                    $length += self::unicodeLength($text);
+                }
+
+                if ($moreBoundaryReached || $length > $maximumLength) {
+                    return false;
                 }
 
                 continue;
             }
 
-            $candidate = self::firstCandidate($child);
-            if (null !== $candidate) {
-                return $candidate;
+            if (
+                !self::collectLeadBlocks(
+                    $child,
+                    $blocks,
+                    $length,
+                    $maximumLength,
+                    $moreBoundaryReached
+                )
+            ) {
+                return false;
             }
         }
 
-        return null;
+        return true;
     }
 
-    private static function listText(DOMElement $list): string
+    private static function listText(DOMElement $list, bool &$moreBoundaryReached): string
     {
         $items = [];
-        self::collectListItems($list, $items);
+        self::collectListItems($list, $items, $moreBoundaryReached);
         $items = array_values(array_filter($items, static function (string $item): bool {
             return '' !== $item;
         }));
 
-        return [] === $items ? self::visibleText($list) : implode("\xEF\xBC\x9B", $items);
+        return [] === $items
+            ? self::visibleTextWithBoundary($list, $moreBoundaryReached)
+            : implode("\xEF\xBC\x9B", $items);
     }
 
     /** @param string[] $items */
-    private static function collectListItems(DOMNode $parent, array &$items): void
-    {
+    private static function collectListItems(
+        DOMNode $parent,
+        array &$items,
+        bool &$moreBoundaryReached
+    ): void {
         foreach ($parent->childNodes as $child) {
+            if (self::isMoreMarker($child)) {
+                $moreBoundaryReached = true;
+                return;
+            }
+
             if (!$child instanceof DOMElement || self::ignoredElement($child)) {
                 continue;
             }
 
             if ('li' === strtolower($child->localName)) {
-                $items[] = self::listItemText($child);
+                $items[] = self::listItemText($child, $moreBoundaryReached);
+                if ($moreBoundaryReached) {
+                    return;
+                }
             }
 
-            self::collectListItems($child, $items);
+            self::collectListItems($child, $items, $moreBoundaryReached);
+            if ($moreBoundaryReached) {
+                return;
+            }
         }
     }
 
-    private static function listItemText(DOMElement $item): string
+    private static function listItemText(DOMElement $item, bool &$moreBoundaryReached): string
     {
         $text = '';
         foreach ($item->childNodes as $child) {
@@ -219,7 +274,10 @@ final class ContentTruncator
                 continue;
             }
 
-            self::appendVisibleText($child, $text);
+            self::appendVisibleText($child, $text, $moreBoundaryReached);
+            if ($moreBoundaryReached) {
+                break;
+            }
         }
 
         return self::normalizeText($text);
@@ -227,16 +285,39 @@ final class ContentTruncator
 
     private static function visibleText(DOMNode $node): string
     {
+        $moreBoundaryReached = false;
+        return self::visibleTextWithBoundary($node, $moreBoundaryReached);
+    }
+
+    private static function visibleTextWithBoundary(
+        DOMNode $node,
+        bool &$moreBoundaryReached
+    ): string {
         $text = '';
         foreach ($node->childNodes as $child) {
-            self::appendVisibleText($child, $text);
+            self::appendVisibleText($child, $text, $moreBoundaryReached);
+            if ($moreBoundaryReached) {
+                break;
+            }
         }
 
         return self::normalizeText($text);
     }
 
-    private static function appendVisibleText(DOMNode $node, string &$text): void
-    {
+    private static function appendVisibleText(
+        DOMNode $node,
+        string &$text,
+        bool &$moreBoundaryReached
+    ): void {
+        if ($moreBoundaryReached) {
+            return;
+        }
+
+        if (self::isMoreMarker($node)) {
+            $moreBoundaryReached = true;
+            return;
+        }
+
         if (XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType) {
             $text .= $node->nodeValue ?? '';
             return;
@@ -252,12 +333,21 @@ final class ContentTruncator
         }
 
         foreach ($node->childNodes as $child) {
-            self::appendVisibleText($child, $text);
+            self::appendVisibleText($child, $text, $moreBoundaryReached);
+            if ($moreBoundaryReached) {
+                break;
+            }
         }
 
         if ($separator) {
             $text .= ' ';
         }
+    }
+
+    private static function isMoreMarker(DOMNode $node): bool
+    {
+        return XML_COMMENT_NODE === $node->nodeType
+            && 0 === strcasecmp(trim($node->nodeValue ?? ''), 'more');
     }
 
     private static function ignoredElement(DOMElement $element): bool
@@ -292,6 +382,12 @@ final class ContentTruncator
     {
         $normalized = preg_replace('/[\s\p{Z}]+/u', ' ', $text);
         return trim(null === $normalized ? $text : $normalized);
+    }
+
+    private static function unicodeLength(string $text): int
+    {
+        $count = preg_match_all('/./us', $text, $matches);
+        return false === $count ? 0 : $count;
     }
 
     private static function truncate(string $text, int $maximumLength): string
