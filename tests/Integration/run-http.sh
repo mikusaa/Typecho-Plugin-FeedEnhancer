@@ -83,7 +83,7 @@ if [[ -e "$FEED_ENHANCER_ROOT" || -e "$PROBE_ROOT" ]]; then
 fi
 
 mkdir -p -- "$FEED_ENHANCER_ROOT" "$PROBE_ROOT"
-for release_path in Plugin.php Runtime Feed Http assets; do
+for release_path in Plugin.php Runtime Feed Http; do
     cp -R -- "$PROJECT_ROOT/$release_path" "$FEED_ENHANCER_ROOT/"
 done
 cp -- "$PROJECT_ROOT/tests/Fixtures/plugins/FeedContractProbe/Plugin.php" \
