@@ -16,23 +16,19 @@ final class SettingsTest extends TestCase
         self::assertFalse($settings->contentTruncationEnabled());
         self::assertSame(100, $settings->feedContentLength());
         self::assertSame('阅读全文', $settings->feedReadMoreText());
-        self::assertTrue($settings->stylesheetEnabled());
-        self::assertFalse($settings->safariXmlMime());
         self::assertTrue($settings->mediaEnabled());
         self::assertSame(['banner', 'cover', 'thumbnail'], $settings->mediaFieldNames());
     }
 
     public function testBooleanValuesAcceptOnlyExplicitEnabledRepresentations(): void
     {
-        $settings = new Settings([
-            'stylesheetEnabled' => '0',
-            'safariXmlMime' => 1,
-            'mediaEnabled' => true,
-        ]);
+        foreach ([true, 1, '1'] as $enabled) {
+            self::assertTrue((new Settings(['mediaEnabled' => $enabled]))->mediaEnabled());
+        }
 
-        self::assertFalse($settings->stylesheetEnabled());
-        self::assertTrue($settings->safariXmlMime());
-        self::assertTrue($settings->mediaEnabled());
+        foreach ([false, 0, '0', 2, 'true', null, []] as $disabled) {
+            self::assertFalse((new Settings(['mediaEnabled' => $disabled]))->mediaEnabled());
+        }
     }
 
     public function testContentTruncationAcceptsOnlyExplicitEnabledRepresentations(): void

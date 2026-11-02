@@ -169,8 +169,6 @@ if [[ "$CONTRACT_MODE" == full ]]; then
     "$PHP_BIN" "$SCRIPT_DIR/http-contract.php" truncation
     "$PHP_BIN" "$SCRIPT_DIR/prepare-site.php" truncation-on-full-text
     "$PHP_BIN" "$SCRIPT_DIR/http-contract.php" truncation-restore-one
-    "$PHP_BIN" "$SCRIPT_DIR/prepare-site.php" safari-on
-    "$PHP_BIN" "$SCRIPT_DIR/http-contract.php" safari
 fi
 
 echo "Typecho HTTP integration passed with $TYPECHO_DB_ADAPTER ($CONTRACT_MODE)."

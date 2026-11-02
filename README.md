@@ -9,7 +9,6 @@ FeedEnhancer 用来增强 Typecho 自带的 RSS 和 Atom Feed。它不更换已�
 - 可选仅输出文章正文开头，并引导读者前往网站阅读全文。
 - 修正 Atom 的文章更新时间。
 - 为文章选择一张 Media RSS 主图。
-- 为 RSS2 提供适合直接浏览的响应式预览。
 - 支持 ETag、HEAD 和 304，减少重复传输。
 
 ## 环境要求
@@ -42,8 +41,6 @@ FeedEnhancer 用来增强 Typecho 自带的 RSS 和 Atom Feed。它不更换已�
 | Feed 正文输出 | 保持 Typecho 默认行为 | 可选仅输出正文开头并追加原文链接 |
 | 正文开头长度 | `100` | 截断模式下的输出总长度为 50 至 1000 个 Unicode 字符，包含 `...` |
 | 阅读全文文字 | `阅读全文` | 必填纯文本，1 至 100 个 Unicode 字符，不接受 HTML |
-| RSS2 浏览器预览 | 启用 | 直接打开 RSS2 时显示易读页面 |
-| Safari XML MIME 兼容 | 关闭 | 仅在 Safari 无法显示预览时启用 |
 | Media RSS | 启用 | 为文章增加一张可供阅读器使用的主图 |
 | 图片字段优先级 | `banner,cover,thumbnail` | 按顺序查找文章自定义字段；留空表示不读取字段 |
 
@@ -55,8 +52,8 @@ FeedEnhancer 用来增强 Typecho 自带的 RSS 和 Atom Feed。它不更换已�
 文章 Feed 会失去离线全文阅读能力，评论 Feed 不受影响。
 
 RSS2 的 `description` 和 Atom 的 `summary` 仍经过 Typecho 自带的 100 字
-`plainExcerpt` 限制，浏览器预览显示的是这份摘要。阅读器使用的 RSS2/Atom 正文字段
-则按插件配置长度输出；长度设置为 100 时，两者的文本预算一致。
+`plainExcerpt` 限制。阅读器使用的 RSS2/Atom 正文字段则按插件配置长度输出；长度设置为
+100 时，两者的文本预算一致。
 
 每篇文章最多选择一张主图，顺序为：
 
@@ -83,8 +80,6 @@ FeedEnhancer 保留 Typecho 原有地址及其分类、标签、作者、日期�
 | RSS1 | `/feed/rss/` |
 | Atom | `/feed/atom/` |
 
-浏览器预览只应用于 RSS2。
-
 ## 隐私保护
 
 Feed 一律按匿名访客能够看到的内容生成。即使请求带有管理员或作者的登录 Cookie，
@@ -98,17 +93,8 @@ Feed 一律按匿名访客能够看到的内容生成。即使请求带有管理
 
 ## 与其他主题和插件配合
 
-### VOID
-
-从 FeedEnhancer 1.1.0 起，Feed 正文截断由插件统一负责，VOID 仍负责把自身生成的图片、
-照片集和交互标记清理为适合 Feed 的静态 HTML。FeedEnhancer 以较晚的内容 hook 权重
-处理已经过主题和常规插件解析的正文，因此无需依赖 VOID，也不会绕过 VOID 的内容解析。
-权重高于截断 hook 的第三方插件仍可在之后修改正文。
-
-过渡期间，如果当前 VOID 版本仍带有 Feed 截断选项，请先在 VOID 中关闭该选项，再在
-FeedEnhancer 中启用截断，避免两处配置同时生效。升级到已移除该选项的 VOID 后，以
-FeedEnhancer 的设置为准。如果 VOID 已先把正文限制为 300 字，插件只能继续缩短，
-无法恢复已被主题丢弃的后续内容。
+FeedEnhancer 以较晚的内容 hook 权重处理已经过主题和常规插件解析的正文，不依赖特定
+主题，也不会绕过主题的内容解析。权重高于截断 hook 的第三方插件仍可在之后修改正文。
 
 ### 互斥插件
 
@@ -118,15 +104,29 @@ FeedEnhancer 的设置为准。如果 VOID 已先把正文限制为 300 字，�
 
 ## 常见问题
 
-### 浏览器预览里没有图片
+### 阅读器里没有显示主图
 
 先确认 Media RSS 已启用，并检查文章是否具有可用的图片字段、最终 Feed 正文图片或
 公开图片附件。图片地址不安全或无法解析时，插件会主动忽略。
 
-### Safari 只显示 XML 源码
+### 浏览器直接打开 Feed 只显示 XML 或下载文件
 
-先确认“RSS2 浏览器预览”已启用；仍无法显示时，再启用“Safari XML MIME 兼容”。这项
-设置只改变 RSS2 的响应类型，不改变订阅地址和 XML 内容。
+这是 Feed 的正常表现，不影响阅读器订阅。FeedEnhancer 1.3.0 起移除了基于 XSLT 的
+RSS2 浏览器预览，以及仅为该预览服务的“Safari XML MIME 兼容”设置，因为主流浏览器
+正在移除 XSLT 支持。RSS2 始终以 `application/rss+xml` 输出。
+
+Chrome 计划自 2026 年 11 月 17 日起在正式版中停用 XSLT，Firefox 与 Safari 也已表示
+将移除，详见 [Chrome 的说明](https://developer.chrome.com/docs/web-platform/deprecating-xslt)。
+
+### 仍想使用原来的浏览器预览
+
+可以从 [GitHub Releases](https://github.com/mikusaa/Typecho-Plugin-FeedEnhancer/releases/tag/v1.2.0)
+安装 FeedEnhancer `1.2.0`，按“下载与安装”中的升级步骤停用并重新启用，再启用“RSS2
+浏览器预览”。在已移除 XSLT 的浏览器中，查看预览的人还需要自行安装 XSLT polyfill
+扩展，例如 Chrome 应用商店中的“XSLT Polyfill”，否则只会看到 XML 源码。
+
+这只适合站长自己查看：普通访客不会为此安装扩展。`1.2.0` 之后的修复与新功能也不会
+回到该版本。
 
 ### RSS1 无法解析
 

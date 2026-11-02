@@ -79,8 +79,7 @@ final class XmlPipelineTest extends TestCase
         $output = $this->pipeline()->enhance(
             $input,
             [['permalink' => 'https://example.test/posts/article-one/']],
-            true,
-            'https://example.test/feed/?feed-enhancer-stylesheet=1'
+            true
         );
 
         self::assertSame($input, $output);
@@ -99,11 +98,13 @@ final class XmlPipelineTest extends TestCase
     {
         $output = $this->pipeline()->enhance(
             $this->fixture('rss2-feed.xml'),
-            [],
-            false,
-            'https://example.test/feed/?feed-enhancer-stylesheet=1&v=1.0.0'
+            [[
+                'permalink' => 'https://example.test/posts/rss2-article/',
+                'fields' => ['cover' => '/images/rss2-cover.jpg'],
+            ]]
         );
         $xpath = $this->xpath($output);
+        self::assertSame(1, $this->nodeCount($xpath, '/rss/channel/item[1]/media:content'));
         $suffix = $xpath->query('/rss/channel/item[1]/vendor:suffix')->item(0);
 
         self::assertInstanceOf(DOMElement::class, $suffix);
@@ -120,12 +121,13 @@ final class XmlPipelineTest extends TestCase
         );
         $output = $this->pipeline()->enhance(
             $input,
-            [],
-            false,
-            'https://example.test/feed/?feed-enhancer-stylesheet=1'
+            [[
+                'permalink' => 'https://example.test/posts/rss2-article/',
+                'fields' => ['cover' => '/images/rss2-cover.jpg'],
+            ]]
         );
 
-        self::assertSame(1, $this->stylesheetInstructionCount($this->document($output)));
+        self::assertSame(1, $this->nodeCount($this->xpath($output), '/rss/channel/item[1]/media:content'));
         self::assertStringContainsString('Literal <!DOCTYPE html> text', $output);
     }
 
@@ -142,8 +144,7 @@ final class XmlPipelineTest extends TestCase
             $this->pipeline()->enhance(
                 $input,
                 [],
-                true,
-                'https://example.test/feed/?feed-enhancer-stylesheet=1'
+                true
             )
         );
     }
@@ -280,18 +281,23 @@ final class XmlPipelineTest extends TestCase
         self::assertSame(0, $this->nodeCount($xpath, '/a:feed/a:entry[2]/media:thumbnail'));
     }
 
-    public function testRss2StylesheetInstructionIsAddedOnceAndAtomIgnoresIt(): void
+    public function testDisabledMediaLeavesRss2BytesUntouched(): void
     {
-        $url = 'https://example.test/feed/?feed-enhancer-stylesheet=1&v=1.0.0';
-        $once = $this->pipeline()->enhance($this->fixture('rss2-feed.xml'), [], false, $url);
-        $twice = $this->pipeline()->enhance($once, [], false, $url);
-        $rssDocument = $this->document($twice);
+        $input = str_replace(
+            'https://cdn.example.test/existing-thumb.jpg',
+            'javascript:alert(1)',
+            $this->fixture('rss2-feed.xml')
+        );
+        $output = $this->pipeline(['cover'])->enhance(
+            $input,
+            [[
+                'permalink' => 'https://example.test/posts/rss2-article/',
+                'fields' => ['cover' => '/images/rss2-cover.jpg'],
+            ]],
+            false
+        );
 
-        self::assertSame(1, $this->stylesheetInstructionCount($rssDocument));
-        self::assertStringContainsString('href="' . $url . '"', html_entity_decode($twice, ENT_QUOTES | ENT_XML1));
-
-        $atom = $this->pipeline()->enhance($this->fixture('atom-feed.xml'), [], false, $url);
-        self::assertSame(0, $this->stylesheetInstructionCount($this->document($atom)));
+        self::assertSame($input, $output);
     }
 
     /** @param string[] $fieldNames */
@@ -340,17 +346,5 @@ final class XmlPipelineTest extends TestCase
         $nodes = $xpath->query($expression);
         self::assertNotFalse($nodes, 'Invalid XPath: ' . $expression);
         return $nodes->length;
-    }
-
-    private function stylesheetInstructionCount(DOMDocument $document): int
-    {
-        $count = 0;
-        foreach ($document->childNodes as $node) {
-            if (XML_PI_NODE === $node->nodeType && 'xml-stylesheet' === $node->nodeName) {
-                ++$count;
-            }
-        }
-
-        return $count;
     }
 }

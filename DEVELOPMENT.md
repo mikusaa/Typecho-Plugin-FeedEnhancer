@@ -47,7 +47,7 @@ TYPECHO_SOURCE=/path/to/typecho make integration
 ```
 
 测试会创建临时 Typecho 站点，覆盖 RSS2、RSS1、Atom、归档、搜索、全站与单篇评论、
-规范 URL、XSL、Media RSS、Atom 时间、登录 Cookie、第三方 hook/suffix、ETag、HEAD
+规范 URL、Media RSS、Atom 时间、登录 Cookie、第三方 hook/suffix、ETag、HEAD
 和 304。
 
 评论查询可以单独测试：
@@ -97,7 +97,6 @@ FeedEnhancer/
 ├── Runtime/
 ├── Feed/
 ├── Http/
-├── assets/
 ├── LICENSE
 └── README.md
 ```
@@ -141,9 +140,8 @@ git push -u origin source
 - Feed 正文截断开启时，短首段会按顺序累计后续有效文本块，50、100、1000 字边界、
   Unicode 内容、自定义阅读全文文字和原文绝对地址均正确，且 CTA 不重复；
 - 文章 Feed 使用正文开头，整站评论与单篇文章评论 Feed 不受截断配置影响；
-- 仍带截断开关的旧 VOID 版本先关闭主题开关；已移除开关的新 VOID 版本只读取插件配置，
-  两种情况下主题图片、照片集与短码均先完成 Feed 清理；
-- RSS2、RSS1、Atom XML 与浏览器预览；
+- 主题与其他插件对图片、短码等内容的 Feed 处理先于正文截断完成；
+- RSS2、RSS1、Atom XML；
 - Media RSS 主图：截断关闭时 RSS2/Atom 正文首图优先于附件，RSS1 按其已移除
   HTML 的最终正文回退到附件；截断开启时正文图不再候选且可回退到字段或附件；
 - Atom 修改时间、GET、HEAD 和 304；

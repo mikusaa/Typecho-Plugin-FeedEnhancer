@@ -71,19 +71,9 @@ function configureFeedEnhancer(array $overrides = []): void
         'feedContentMode' => '0',
         'feedContentLength' => '100',
         'feedReadMoreText' => '阅读全文',
-        'stylesheetEnabled' => '1',
-        'safariXmlMime' => '0',
         'mediaEnabled' => '1',
         'mediaFieldNames' => 'banner,cover,thumbnail',
     ], $overrides));
-}
-
-if ('safari-on' === $mode) {
-    configureFeedEnhancer([
-        'safariXmlMime' => '1',
-    ]);
-    fwrite(STDOUT, "Enabled Safari XML MIME compatibility.\n");
-    exit(0);
 }
 
 if ('truncation-on' === $mode) {

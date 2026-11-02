@@ -372,26 +372,6 @@ function runCommentContract(string $baseUrl): void
     assertGlobalComments($baseUrl, '/feed/comments/', 'rss2');
 }
 
-function runSafariContract(string $baseUrl): void
-{
-    $rss2 = contractRequest('GET', $baseUrl . '/feed/');
-    assertStatus($rss2, 200, 'Safari RSS2');
-    assertContentType($rss2, 'application/xml', 'Safari RSS2');
-    parseFeedXml($rss2->body, 'Safari RSS2');
-    contractAssert(
-        false !== strpos($rss2->body, 'feed-enhancer-stylesheet=1'),
-        'Safari RSS2 is missing its stylesheet instruction.'
-    );
-
-    $rss1 = contractRequest('GET', $baseUrl . '/feed/rss/');
-    assertStatus($rss1, 200, 'Safari RSS1');
-    assertContentType($rss1, 'application/rdf+xml', 'Safari RSS1');
-
-    $atom = contractRequest('GET', $baseUrl . '/feed/atom/');
-    assertStatus($atom, 200, 'Safari Atom');
-    assertContentType($atom, 'application/atom+xml', 'Safari Atom');
-}
-
 function probeEventCount(string $logFile, string $expected): int
 {
     if (!is_file($logFile)) {
@@ -908,22 +888,12 @@ function runFullContract(
         is_string($fixtureStateFile) && '' !== $fixtureStateFile,
         'FE_FIXTURE_STATE is required to compare truncation representations.'
     );
-    contractAssert(
-        false !== strpos($responses['rss2']->body, 'feed-enhancer-stylesheet=1'),
-        'RSS2 is missing its stylesheet instruction.'
-    );
-    contractAssert(
-        false !== strpos($responses['rss2']->body, 'v=1.2.0'),
-        'RSS2 stylesheet instruction did not use the 1.2.0 cachebuster.'
-    );
-    contractAssert(
-        false === strpos($responses['rss1']->body, 'feed-enhancer-stylesheet=1'),
-        'RSS1 must not contain the RSS2 stylesheet instruction.'
-    );
-    contractAssert(
-        false === strpos($responses['atom']->body, 'feed-enhancer-stylesheet=1'),
-        'Atom must not contain the RSS2 stylesheet instruction.'
-    );
+    foreach (['rss2', 'rss1', 'atom'] as $format) {
+        contractAssert(
+            false === strpos($responses[$format]->body, 'xml-stylesheet'),
+            strtoupper($format) . ' must not contain a stylesheet instruction.'
+        );
+    }
     assertContainsAll(
         $responses['rss2']->body,
         ['media:content', 'media:thumbnail', '/media/field-cover.jpg'],
@@ -1142,130 +1112,18 @@ function runFullContract(
         'RSS2 POST'
     );
 
-    $stylesheetUrl = $baseUrl . '/feed/?feed-enhancer-stylesheet=1&v=1.2.0';
-    $stylesheet = contractRequest('GET', $stylesheetUrl);
-    assertStatus($stylesheet, 200, 'XSL endpoint');
-    assertContentType($stylesheet, 'application/xslt+xml', 'XSL endpoint');
-    assertManagedCacheHeaders(
-        $stylesheet,
-        'private, max-age=0, must-revalidate',
-        'XSL GET'
-    );
-    contractAssert(
-        (string) strlen($stylesheet->body) === contractHeader($stylesheet, 'Content-Length'),
-        'XSL GET Content-Length differs from its body bytes.'
-    );
-    $stylesheetEtag = '"sha256-' . hash('sha256', $stylesheet->body) . '"';
-    contractAssert(
-        $stylesheetEtag === contractHeader($stylesheet, 'ETag'),
-        'XSL GET is missing its representation ETag.'
-    );
-    $stylesheetDocument = parseFeedXml($stylesheet->body, 'XSL endpoint');
-    contractAssert(
-        'stylesheet' === $stylesheetDocument->documentElement->localName,
-        'XSL endpoint did not return a stylesheet.'
-    );
-    contractAssert(false === stripos($stylesheet->body, '<script'), 'XSL endpoint contains script.');
-    contractAssert(
-        false === stripos($stylesheet->body, 'disable-output-escaping'),
-        'XSL endpoint contains disable-output-escaping.'
-    );
-
-    $stylesheetHead = contractRequest('HEAD', $stylesheetUrl);
-    assertStatus($stylesheetHead, 200, 'XSL HEAD');
-    assertContentType($stylesheetHead, 'application/xslt+xml', 'XSL HEAD');
-    assertManagedCacheHeaders(
-        $stylesheetHead,
-        'private, max-age=0, must-revalidate',
-        'XSL HEAD'
-    );
-    contractAssert('' === $stylesheetHead->body, 'XSL HEAD must not contain a body.');
-    contractAssert(
-        $stylesheetEtag === contractHeader($stylesheetHead, 'ETag'),
-        'XSL HEAD ETag differs from GET.'
-    );
-    contractAssert(
-        (string) strlen($stylesheet->body) === contractHeader($stylesheetHead, 'Content-Length'),
-        'XSL HEAD Content-Length differs from GET bytes.'
-    );
-
-    $stylesheetNotModified = contractRequest(
+    $retiredStylesheet = contractRequest(
         'GET',
-        $stylesheetUrl,
-        ['If-None-Match: ' . $stylesheetEtag]
+        $baseUrl . '/feed/?feed-enhancer-stylesheet=1&v=1.2.0'
     );
-    assertStatus($stylesheetNotModified, 304, 'XSL conditional GET');
-    assertContentType($stylesheetNotModified, 'application/xslt+xml', 'XSL conditional GET');
-    assertManagedCacheHeaders(
-        $stylesheetNotModified,
-        'private, max-age=0, must-revalidate',
-        'XSL conditional GET'
-    );
-    contractAssert('' === $stylesheetNotModified->body, 'XSL 304 must not contain a body.');
+    assertStatus($retiredStylesheet, 301, 'retired stylesheet URL');
+    $retiredLocation = (string) contractHeader($retiredStylesheet, 'Location');
     contractAssert(
-        $stylesheetEtag === contractHeader($stylesheetNotModified, 'ETag'),
-        'XSL 304 ETag differs from GET.'
+        $baseUrl . '/feed/' === $retiredLocation,
+        'The retired stylesheet URL must redirect to the RSS2 feed: ' . $retiredLocation
     );
-    assertHeaderValues($stylesheetNotModified, 'Content-Length', [], 'XSL conditional GET');
-
-    $stylesheetMethodNotAllowed = contractRequest('POST', $stylesheetUrl);
-    assertStatus($stylesheetMethodNotAllowed, 405, 'XSL POST');
-    assertContentType($stylesheetMethodNotAllowed, 'application/xslt+xml', 'XSL POST');
-    assertManagedCacheHeaders(
-        $stylesheetMethodNotAllowed,
-        'private, max-age=0, must-revalidate',
-        'XSL POST'
-    );
-    contractAssert('' === $stylesheetMethodNotAllowed->body, 'XSL 405 must not contain a body.');
-    contractAssert(
-        'GET, HEAD' === contractHeader($stylesheetMethodNotAllowed, 'Allow'),
-        'XSL 405 response has an invalid Allow header.'
-    );
-    assertHeaderValues($stylesheetMethodNotAllowed, 'Content-Length', ['0'], 'XSL POST');
-    assertHeaderValues($stylesheetMethodNotAllowed, 'ETag', [], 'XSL POST');
 
     contractAssert(null !== $loginCookie, 'The fixture did not provide an editor login cookie.');
-
-    $loggedInStylesheet = contractRequest(
-        'GET',
-        $stylesheetUrl,
-        ['Cookie: ' . $loginCookie]
-    );
-    assertStatus($loggedInStylesheet, 200, 'logged-in XSL GET');
-    assertContentType($loggedInStylesheet, 'application/xslt+xml', 'logged-in XSL GET');
-    assertManagedCacheHeaders($loggedInStylesheet, 'private, no-store', 'logged-in XSL GET');
-    contractAssert(
-        $stylesheet->body === $loggedInStylesheet->body,
-        'Logged-in XSL bytes differ from anonymous GET.'
-    );
-    contractAssert(
-        $stylesheetEtag === contractHeader($loggedInStylesheet, 'ETag'),
-        'Logged-in XSL ETag differs from anonymous GET.'
-    );
-    contractAssert(
-        (string) strlen($stylesheet->body) === contractHeader($loggedInStylesheet, 'Content-Length'),
-        'Logged-in XSL Content-Length differs from anonymous GET bytes.'
-    );
-
-    $loggedInStylesheetNotModified = contractRequest(
-        'GET',
-        $stylesheetUrl,
-        ['Cookie: ' . $loginCookie, 'If-None-Match: ' . $stylesheetEtag]
-    );
-    assertStatus($loggedInStylesheetNotModified, 304, 'logged-in XSL conditional GET');
-    assertManagedCacheHeaders(
-        $loggedInStylesheetNotModified,
-        'private, no-store',
-        'logged-in XSL conditional GET'
-    );
-    contractAssert(
-        '' === $loggedInStylesheetNotModified->body,
-        'Logged-in XSL 304 must not contain a body.'
-    );
-    contractAssert(
-        $stylesheetEtag === contractHeader($loggedInStylesheetNotModified, 'ETag'),
-        'Logged-in XSL 304 ETag differs from GET.'
-    );
 
     $loggedIn = contractRequest('GET', $baseUrl . '/feed/', ['Cookie: ' . $loginCookie]);
     assertStatus($loggedIn, 200, 'logged-in editor RSS2');
@@ -1283,8 +1141,6 @@ function runFullContract(
 try {
     if ('comments' === $mode) {
         runCommentContract($baseUrl);
-    } elseif ('safari' === $mode) {
-        runSafariContract($baseUrl);
     } elseif ('full' === $mode) {
         runFullContract(
             $baseUrl,

@@ -6,8 +6,6 @@ namespace TypechoPlugin\FeedEnhancer\Feed;
 
 use Typecho\Widget;
 use TypechoPlugin\FeedEnhancer\Http\ConditionalResponse;
-use TypechoPlugin\FeedEnhancer\Http\StylesheetResponder;
-use TypechoPlugin\FeedEnhancer\Plugin;
 use TypechoPlugin\FeedEnhancer\Runtime\RequestContext;
 use TypechoPlugin\FeedEnhancer\Runtime\Settings;
 
@@ -53,17 +51,7 @@ final class FeedProxy extends Widget
         );
         $conditional = new ConditionalResponse();
 
-        if ($this->isStylesheetRequest($context, $settings)) {
-            $context->leave();
-            $stylesheet = new StylesheetResponder(null, $conditional);
-            $prepared = $stylesheet->serve($method, $ifNoneMatch, $loggedIn);
-            $this->applyPreparedResponse($prepared);
-            return;
-        }
-
-        $contentType = $context->contentType(
-            $settings->stylesheetEnabled() && $settings->safariXmlMime()
-        );
+        $contentType = $context->contentType();
 
         if (!in_array($method, ['GET', 'HEAD'], true)) {
             $context->leave();
@@ -98,23 +86,11 @@ final class FeedProxy extends Widget
             }
         }
 
-        $stylesheetUrl = null;
-        if (
-            $settings->stylesheetEnabled()
-            && RequestContext::FORMAT_RSS2 === $context->format()
-        ) {
-            $stylesheetUrl = StylesheetResponder::buildUrl(
-                (string) \Widget\Options::alloc()->feedUrl,
-                Plugin::VERSION
-            );
-        }
-
         $pipeline = new XmlPipeline(new MediaResolver($settings->mediaFieldNames()));
         $body = $pipeline->enhance(
             $xml,
             $context->metadata()->items($settings->mediaEnabled()),
-            $settings->mediaEnabled(),
-            $stylesheetUrl
+            $settings->mediaEnabled()
         );
 
         $prepared = $conditional->prepare(
@@ -130,23 +106,6 @@ final class FeedProxy extends Widget
     public function render(): void
     {
         echo $this->body;
-    }
-
-    private function isStylesheetRequest(RequestContext $context, Settings $settings): bool
-    {
-        if (
-            !$settings->stylesheetEnabled()
-            || RequestContext::FORMAT_RSS2 !== $context->format()
-            || '/' !== $context->contentPath()
-        ) {
-            return false;
-        }
-
-        $responder = new StylesheetResponder();
-        return $responder->isRequested([
-            'feed-enhancer-stylesheet' => $this->request->get('feed-enhancer-stylesheet'),
-            'v' => $this->request->get('v'),
-        ]);
     }
 
     /**

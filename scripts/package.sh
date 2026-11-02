@@ -62,7 +62,7 @@ CHECKSUM_PATH="$DIST_DIR/$CHECKSUM_NAME"
 
 mkdir -p -- "$PACKAGE_ROOT" "$DIST_DIR"
 
-for item in Plugin.php Runtime Feed Http assets LICENSE README.md CHANGELOG.md; do
+for item in Plugin.php Runtime Feed Http LICENSE README.md CHANGELOG.md; do
     if [ -e "$PROJECT_ROOT/$item" ]; then
         cp -R -- "$PROJECT_ROOT/$item" "$PACKAGE_ROOT/"
     fi
@@ -73,7 +73,6 @@ for required in \
     Runtime \
     Feed \
     Http \
-    assets/feed-preview.xsl \
     LICENSE \
     README.md
 do
@@ -108,7 +107,6 @@ TOP_LEVELS=$(awk -F/ 'NF > 0 && $1 != "" { print $1 }' "$LISTING_FILE" | sort -u
 
 for required in \
     FeedEnhancer/Plugin.php \
-    FeedEnhancer/assets/feed-preview.xsl \
     FeedEnhancer/LICENSE \
     FeedEnhancer/README.md
 do
