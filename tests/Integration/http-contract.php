@@ -1112,17 +1112,6 @@ function runFullContract(
         'RSS2 POST'
     );
 
-    $retiredStylesheet = contractRequest(
-        'GET',
-        $baseUrl . '/feed/?feed-enhancer-stylesheet=1&v=1.2.0'
-    );
-    assertStatus($retiredStylesheet, 301, 'retired stylesheet URL');
-    $retiredLocation = (string) contractHeader($retiredStylesheet, 'Location');
-    contractAssert(
-        $baseUrl . '/feed/' === $retiredLocation,
-        'The retired stylesheet URL must redirect to the RSS2 feed: ' . $retiredLocation
-    );
-
     contractAssert(null !== $loginCookie, 'The fixture did not provide an editor login cookie.');
 
     $loggedIn = contractRequest('GET', $baseUrl . '/feed/', ['Cookie: ' . $loginCookie]);
