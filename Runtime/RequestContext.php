@@ -155,7 +155,7 @@ final class RequestContext
         return in_array($type, ['post', 'page', 'attachment', 'single'], true);
     }
 
-    public function contentType(bool $safariXmlMime = false): string
+    public function contentType(): string
     {
         if (self::FORMAT_ATOM === $this->format) {
             return 'application/atom+xml';
@@ -165,7 +165,7 @@ final class RequestContext
             return 'application/rdf+xml';
         }
 
-        return $safariXmlMime ? 'application/xml' : 'application/rss+xml';
+        return 'application/rss+xml';
     }
 
     private static function normalizePath(string $path): string

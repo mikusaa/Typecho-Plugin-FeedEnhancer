@@ -19,8 +19,6 @@ final class Settings
     private bool $contentTruncationEnabled;
     private int $feedContentLength;
     private string $feedReadMoreText;
-    private bool $stylesheetEnabled;
-    private bool $safariXmlMime;
     private bool $mediaEnabled;
 
     /** @var string[] */
@@ -38,8 +36,6 @@ final class Settings
         $this->feedReadMoreText = array_key_exists('feedReadMoreText', $values)
             ? self::normalizeFeedReadMoreText($values['feedReadMoreText'])
             : self::DEFAULT_FEED_READ_MORE_TEXT;
-        $this->stylesheetEnabled = self::booleanValue($values, 'stylesheetEnabled', true);
-        $this->safariXmlMime = self::booleanValue($values, 'safariXmlMime', false);
         $this->mediaEnabled = self::booleanValue($values, 'mediaEnabled', true);
         $this->mediaFieldNames = array_key_exists('mediaFieldNames', $values)
             ? self::normalizeFieldNames($values['mediaFieldNames'])
@@ -56,8 +52,6 @@ final class Settings
                     'feedContentMode',
                     'feedContentLength',
                     'feedReadMoreText',
-                    'stylesheetEnabled',
-                    'safariXmlMime',
                     'mediaEnabled',
                     'mediaFieldNames',
                 ] as $key
@@ -87,16 +81,6 @@ final class Settings
     public function feedReadMoreText(): string
     {
         return $this->feedReadMoreText;
-    }
-
-    public function stylesheetEnabled(): bool
-    {
-        return $this->stylesheetEnabled;
-    }
-
-    public function safariXmlMime(): bool
-    {
-        return $this->safariXmlMime;
     }
 
     public function mediaEnabled(): bool

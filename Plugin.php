@@ -18,17 +18,17 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 }
 
 /**
- * 在保留 Typecho 原生 Feed 地址与主题内容过滤链的前提下，增强正文输出、隐私、媒体、浏览器预览和 HTTP 缓存协商。
+ * 在保留 Typecho 原生 Feed 地址与主题内容过滤链的前提下，增强正文输出、隐私、媒体和 HTTP 缓存协商。
  *
  * @package FeedEnhancer
  * @author mikusa
  * @link https://github.com/mikusaa/Typecho-Plugin-FeedEnhancer
- * @version 1.2.0
+ * @version 1.3.0
  * @since 1.3.0
  */
 final class Plugin implements PluginInterface
 {
-    public const VERSION = '1.2.0';
+    public const VERSION = '1.3.0';
 
     public static function activate(): string
     {
@@ -93,26 +93,6 @@ final class Plugin implements PluginInterface
             _t('阅读全文文字必须是 1 至 100 个 Unicode 字符，且不能包含控制字符或 HTML 标记。')
         );
         $form->addInput($feedReadMoreText);
-
-        $stylesheet = new Radio(
-            'stylesheetEnabled',
-            ['1' => _t('启用'), '0' => _t('关闭')],
-            '1',
-            _t('RSS2 浏览器预览'),
-            _t('为 RSS2 添加安全的 XSLT 1.0 预览，不改变 Feed 地址或订阅 MIME。')
-        );
-        $stylesheet->addRule('enum', _t('RSS2 浏览器预览设置无效。'), ['0', '1']);
-        $form->addInput($stylesheet);
-
-        $safariMime = new Radio(
-            'safariXmlMime',
-            ['1' => _t('启用'), '0' => _t('关闭')],
-            '0',
-            _t('Safari XML MIME 兼容'),
-            _t('启用浏览器预览时，将 RSS2 的 Content-Type 改为 application/xml。默认保持标准 MIME。')
-        );
-        $safariMime->addRule('enum', _t('Safari MIME 设置无效。'), ['0', '1']);
-        $form->addInput($safariMime);
 
         $media = new Radio(
             'mediaEnabled',

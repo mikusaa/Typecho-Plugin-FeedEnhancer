@@ -37,8 +37,7 @@ final class XmlPipeline
     public function enhance(
         string $xml,
         array $metadataItems = [],
-        bool $mediaEnabled = true,
-        ?string $stylesheetUrl = null
+        bool $mediaEnabled = true
     ): string {
         if (!class_exists(DOMDocument::class)) {
             $this->diagnose('DOM is unavailable');
@@ -88,20 +87,8 @@ final class XmlPipeline
                 $changed = $this->updateAtomTimes($document, $metadata) || $changed;
             }
 
-            if (
-                $mediaEnabled
-                || ('rss2' === $protocol && null !== $stylesheetUrl && '' !== trim($stylesheetUrl))
-            ) {
-                $changed = $this->processMedia(
-                    $document,
-                    $protocol,
-                    $metadata,
-                    $mediaEnabled
-                ) || $changed;
-            }
-
-            if ('rss2' === $protocol && null !== $stylesheetUrl && '' !== trim($stylesheetUrl)) {
-                $changed = $this->addStylesheet($document, trim($stylesheetUrl)) || $changed;
+            if ($mediaEnabled) {
+                $changed = $this->processMedia($document, $protocol, $metadata) || $changed;
             }
 
             if (!$changed) {
@@ -258,8 +245,7 @@ final class XmlPipeline
     private function processMedia(
         DOMDocument $document,
         string $protocol,
-        array $metadata,
-        bool $addMissing
+        array $metadata
     ): bool {
         $root = $document->documentElement;
         if (!$root instanceof DOMElement) {
@@ -275,7 +261,7 @@ final class XmlPipeline
 
             [$hasExisting, $sanitized] = $this->sanitizeExistingMedia($entry, $link);
             $changed = $sanitized || $changed;
-            if ($hasExisting || !$addMissing || !isset($metadata[$link])) {
+            if ($hasExisting || !isset($metadata[$link])) {
                 continue;
             }
 
@@ -447,40 +433,6 @@ final class XmlPipeline
         }
 
         return $content;
-    }
-
-    private function addStylesheet(DOMDocument $document, string $url): bool
-    {
-        if (
-            false !== strpos($url, '?>')
-            || 1 === preg_match('/[\\x00-\\x1F\\x7F]/', $url)
-        ) {
-            return false;
-        }
-
-        foreach ($document->childNodes as $node) {
-            if (XML_PI_NODE !== $node->nodeType || 'xml-stylesheet' !== $node->nodeName) {
-                continue;
-            }
-
-            $data = html_entity_decode((string) $node->nodeValue, ENT_QUOTES | ENT_XML1, 'UTF-8');
-            if (false !== strpos($data, $url) || false !== strpos($data, 'feed-enhancer-stylesheet=1')) {
-                return false;
-            }
-        }
-
-        $escaped = htmlspecialchars(
-            $url,
-            ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE,
-            'UTF-8'
-        );
-        $instruction = $document->createProcessingInstruction(
-            'xml-stylesheet',
-            'type="text/xsl" href="' . $escaped . '"'
-        );
-        $document->insertBefore($instruction, $document->documentElement);
-
-        return true;
     }
 
     /** @return DOMElement[] */
