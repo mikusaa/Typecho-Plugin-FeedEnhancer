@@ -532,7 +532,7 @@ foreach ($specialComments as [$coid, $cid, $text, $status]) {
 $fixtureState = getenv('FE_FIXTURE_STATE');
 if (is_string($fixtureState) && '' !== $fixtureState) {
     $cookiePrefix = \Typecho\Cookie::getPrefix();
-    $cookieHash = md5($editorAuthCode);
+    $cookieHash = \Typecho\Common::hash($editorAuthCode);
     $state = [
         'editorName' => 'feed-secret-author',
         'editorPassword' => $editorPassword,
